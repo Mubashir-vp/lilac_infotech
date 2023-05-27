@@ -38,11 +38,13 @@ dependencies:
   # better_player: ^0.0.83
   hexcolor: ^3.0.1
   google_fonts: ^4.0.4
-  googleapis: ^11.2.0
   video_player: ^2.6.1
   downloads_path_provider_28: ^0.1.2
   permission_handler: ^8.3.0
   dio: ^4.0.4
+  percent_indicator: ^4.2.3
+  fluttertoast: ^8.2.2
+  font_awesome_flutter: ^10.4.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -66,8 +68,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets/images/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
