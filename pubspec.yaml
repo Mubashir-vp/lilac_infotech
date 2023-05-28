@@ -39,13 +39,16 @@ dependencies:
   hexcolor: ^3.0.1
   google_fonts: ^4.0.4
   video_player: ^2.6.1
-  downloads_path_provider_28: ^0.1.2
   permission_handler: ^8.3.0
   dio: ^4.0.4
   percent_indicator: ^4.2.3
   fluttertoast: ^8.2.2
   font_awesome_flutter: ^10.4.0
   path_provider: ^2.0.15
+  flutter_windowmanager: ^0.2.0
+  flutter_secure_storage: ^5.0.0
+  crypto: ^3.0.1
+  encrypt: ^5.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

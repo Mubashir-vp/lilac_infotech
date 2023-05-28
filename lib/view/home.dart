@@ -1,7 +1,9 @@
 // ignore_for_file: unnecessary_null_comparison
 
-import 'dart:developer';
+import 'dart:developer' as dev;
 import 'dart:io';
+import 'package:encrypt/encrypt.dart' as enc;
+import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +27,40 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   VideoPlayerController? _videoPlayerController;
   final progressNotifier = ValueNotifier<double?>(0);
+  Future<String?> encryptVideoFile(
+    String filePath,
+  ) async {
+    dev.log('Got inside');
+    try {
+      final file = File(filePath);
+      final fileBytes = await file.readAsBytes();
+      final key = enc.Key.fromUtf8('demo_key');
+      final encrypter = enc.Encrypter(enc.AES(key));
+      final encryptedBytes = encrypter.encryptBytes(fileBytes);
+      final encryptedFilePath = '${file.path}.encrypted';
+      final encryptedFile = File(encryptedFilePath);
+      await encryptedFile.writeAsBytes(encryptedBytes.bytes);
+      return encryptedFilePath;
+    } catch (e) {
+      dev.log('Error Occured in encryption $e');
+    }
+    return null;
+  }
+
+  Future<String> decryptVideoFile(String filePath) async {
+    final file = File(filePath);
+    final encryptedBytes = await file.readAsBytes();
+    // Generate encryption key
+    final key = enc.Key.fromUtf8('demo_key');
+    final encrypter = enc.Encrypter(enc.AES(key));
+    final decryptedBytes =
+        encrypter.decryptBytes(enc.Encrypted(encryptedBytes));
+    final decryptedFilePath = '${file.path}.decrypted';
+    final decryptedFile = File(decryptedFilePath);
+    await decryptedFile.writeAsBytes(decryptedBytes);
+    return decryptedFilePath;
+  }
+
   List<String> url = [
     'https://my-bucket-to.s3.amazonaws.com/WhatsApp+Video+2023-05-27+at+8.08.09+PM+(1).mp4',
     'https://my-bucket-to.s3.amazonaws.com/WhatsApp+Video+2023-05-27+at+8.08.08+PM.mp4',
@@ -34,6 +70,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isInitialized = false;
   bool _isDownloading = false;
   bool _isSavedVideo = false;
+  bool _isSecureMode = false;
 
   @override
   void initState() {
@@ -71,9 +108,13 @@ class _MyHomePageState extends State<MyHomePage> {
         String savename = list[1];
         final filePath = "${dir.path}/$savename";
         final file = File(filePath);
-        bool isExist = await file.exists();
-        if (isExist) {
-          log('VideoFrom file $filePath');
+        // final decryptedFilePath =
+        //     '${file.path}.decrypted'; // Decrypted file path
+        final decryptedFilePath = await decryptVideoFile(filePath);
+        final decryptedFile = File(decryptedFilePath);
+        bool isDecryptedFileExist = await decryptedFile.exists();
+        if (isDecryptedFileExist) {
+          dev.log('VideoFrom file $decryptedFilePath');
           _videoPlayerController = VideoPlayerController.file(
             File(filePath),
           )
@@ -89,7 +130,7 @@ class _MyHomePageState extends State<MyHomePage> {
           _isSavedVideo = true;
         } else {
           //  await file.deleteSync();
-          log('VideoFrom network ${url[selectedIndex]}');
+          dev.log('VideoFrom network ${url[selectedIndex]}');
           _videoPlayerController = VideoPlayerController.network(
               url[selectedIndex],
               formatHint: VideoFormat.other)
@@ -109,7 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     } catch (e) {
-      log('Error caught $e');
+      dev.log('Error caught $e');
     }
   }
 
@@ -122,6 +163,24 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        floatingActionButton: FloatingActionButton.extended(
+          label: Text(_isSecureMode ? 'Secure Mode' : 'UnSecure Mode'),
+          onPressed: () {
+            _isSecureMode = !_isSecureMode;
+            dev.log("SecureMode checking $_isSecureMode");
+            setState(() {});
+            if (_isSecureMode) {
+              FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
+            } else {
+              FlutterWindowManager.clearFlags(FlutterWindowManager.FLAG_SECURE);
+            }
+          },
+          icon: Icon(
+            _isSecureMode
+                ? FontAwesomeIcons.userSecret
+                : FontAwesomeIcons.lockOpen,
+          ),
+        ),
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           leading: const Padding(
@@ -169,7 +228,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         children: [
                           GestureDetector(
                             onTap: () async {
-                              log('SelectedIndex $selectedIndex, ');
+                              dev.log('SelectedIndex $selectedIndex, ');
                               if (selectedIndex != 0) {
                                 selectedIndex--;
                               } else {
@@ -209,8 +268,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                     if (list.isNotEmpty && list != null) {
                                       String savename = list[1];
                                       String savePath = "${dir.path}/$savename";
-                                      log(savePath);
-                                      //output:  /storage/emulated/0/Download/banner.png
                                       try {
                                         await Dio().download(
                                             url[selectedIndex], savePath,
@@ -221,12 +278,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                             setState(() {});
                                             progressNotifier.value =
                                                 (received / total * 100);
-
-                                            log("${(received / total * 100).toStringAsFixed(0)}%");
-                                            //you can build progressbar feature too
                                           }
                                         });
+                                        final encryptedFilePath =
+                                            await encryptVideoFile(savePath);
+                                        dev.log(encryptedFilePath.toString());
+
+                                        // final File file = File(savePath);
+                                        // await file.writeAsBytes(response.data,
+                                        //     flush: true);
+                                        // await encryptVideoFile(file.path);
                                         _isDownloading = false;
+                                        _isSavedVideo = true;
                                         setState(() {});
                                         Fluttertoast.showToast(
                                             msg: "File saved to downloads",
@@ -238,19 +301,19 @@ class _MyHomePageState extends State<MyHomePage> {
                                             textColor: Colors.white,
                                             fontSize: 16.0);
                                       } on DioError catch (e) {
-                                        log(e.message);
+                                        dev.log(e.message);
                                       }
                                     }
                                   }
                                 } else if (await Permission.storage
                                     .request()
                                     .isPermanentlyDenied) {
-                                  log('Not Permenently authenticated');
+                                  dev.log('Not Permenently authenticated');
                                   await openAppSettings();
                                 } else if (await Permission.storage
                                     .request()
                                     .isDenied) {
-                                  log('Not authenticated');
+                                  dev.log('Not authenticated');
                                 }
                               }
                             },
@@ -289,13 +352,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           GestureDetector(
                             onTap: () async {
-                              log('SelectedIndex $selectedIndex, ');
+                              dev.log('SelectedIndex $selectedIndex, ');
                               if (selectedIndex != 2) {
                                 selectedIndex++;
                               } else {
                                 selectedIndex = 0;
                               }
-                              log('ChangedIndex $selectedIndex, ');
+                              dev.log('ChangedIndex $selectedIndex, ');
                               setState(() {});
                               _videoPlayerController!.dispose();
                               await initPlayer();
@@ -323,7 +386,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ? ValueListenableBuilder<double?>(
                             valueListenable: progressNotifier,
                             builder: (context, percent, child) {
-                              log('Progres checking $percent');
+                              dev.log('Progres checking $percent');
                               return CircularPercentIndicator(
                                 radius: 30,
                                 percent: percent! / 100,
