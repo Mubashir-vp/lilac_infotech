@@ -2,9 +2,8 @@
 
 import 'dart:developer';
 import 'dart:io';
-
+import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
-import 'package:downloads_path_provider_28/downloads_path_provider_28.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -24,7 +23,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late VideoPlayerController _videoPlayerController;
+  VideoPlayerController? _videoPlayerController;
   final progressNotifier = ValueNotifier<double?>(0);
   List<String> url = [
     'https://my-bucket-to.s3.amazonaws.com/WhatsApp+Video+2023-05-27+at+8.08.09+PM+(1).mp4',
@@ -32,14 +31,15 @@ class _MyHomePageState extends State<MyHomePage> {
     'https://my-bucket-to.s3.amazonaws.com/WhatsApp+Video+2023-05-27+at+8.08.09+PM.mp4'
   ];
   int selectedIndex = 0;
-  String fileurl =
-      'https://my-bucket-to.s3.amazonaws.com/WhatsApp+Video+2023-05-27+at+8.08.09+PM.mp4';
+  bool _isInitialized = false;
   bool _isDownloading = false;
+  bool _isSavedVideo = false;
 
   @override
   void initState() {
+    initPlayer();
     // _chewieController = ChewieController(
-    //   videoPlayerController: _videoPlayerController,
+    //   videoPlayerController: _videoPlayerController!,
 
     //   // Prepare the video to be played and display the first frame
     //   autoInitialize: true,
@@ -59,59 +59,63 @@ class _MyHomePageState extends State<MyHomePage> {
     //     );
     //   },
     // );
-    initPlayer();
     super.initState();
   }
 
   initPlayer() async {
-    var dir = await DownloadsPathProvider.downloadsDirectory;
-    List<String> list =
-        url[selectedIndex].split('https://my-bucket-to.s3.amazonaws.com/');
-    if (list.isNotEmpty && list != null) {
-      String savename = list[1];
-      final filePath = "${dir!.path}/$savename";
-      final file = File(filePath);
-      bool isExist = await file.exists();
-      if (isExist) {
-        log('VideoFrom file');
-        _videoPlayerController = VideoPlayerController.file(
-          File(filePath),
-        )
-          ..addListener(() {
-            if (_videoPlayerController.value.hasError) {
-              print(
-                  'Video player error: ${_videoPlayerController.value.errorDescription}');
-              // Handle the error here (e.g., display an error message)
-            }
-            setState(
-              () {},
+    try {
+      var dir = await getApplicationDocumentsDirectory();
+      List<String> list =
+          url[selectedIndex].split('https://my-bucket-to.s3.amazonaws.com/');
+      if (list.isNotEmpty && list != null) {
+        String savename = list[1];
+        final filePath = "${dir.path}/$savename";
+        final file = File(filePath);
+        bool isExist = await file.exists();
+        if (isExist) {
+          log('VideoFrom file $filePath');
+          _videoPlayerController = VideoPlayerController.file(
+            File(filePath),
+          )
+            ..addListener(() {
+              setState(
+                () {},
+              );
+            })
+            ..setLooping(true)
+            ..initialize().then(
+              (value) => _videoPlayerController!.play(),
             );
-          })
-          ..setLooping(true)
-          ..initialize().then(
-            (value) => _videoPlayerController.play(),
-          );
-      } else {
-        log('VideoFrom network');
-        _videoPlayerController = VideoPlayerController.network(
-            url[selectedIndex],
-            formatHint: VideoFormat.other)
-          ..addListener(() {
-            setState(
-              () {},
+          _isSavedVideo = true;
+        } else {
+          //  await file.deleteSync();
+          log('VideoFrom network ${url[selectedIndex]}');
+          _videoPlayerController = VideoPlayerController.network(
+              url[selectedIndex],
+              formatHint: VideoFormat.other)
+            ..addListener(() {
+              setState(
+                () {},
+              );
+            })
+            ..setLooping(true)
+            ..initialize().then(
+              (value) => _videoPlayerController!.play(),
             );
-          })
-          ..setLooping(true)
-          ..initialize().then(
-            (value) => _videoPlayerController.play(),
-          );
+          _isSavedVideo = false;
+        }
+        setState(() {
+          _isInitialized = true;
+        });
       }
+    } catch (e) {
+      log('Error caught $e');
     }
   }
 
   @override
   void dispose() {
-    _videoPlayerController.dispose();
+    _videoPlayerController!.dispose();
     super.dispose();
   }
 
@@ -143,8 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
           backgroundColor: Colors.transparent,
         ),
-        body: _videoPlayerController != null &&
-                _videoPlayerController.value.isInitialized
+        body: _isInitialized
             ? SingleChildScrollView(
                 child: Column(
                   children: [
@@ -154,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       height: 262,
                       alignment: Alignment.topCenter,
                       child: VideoPlayerWidget(
-                        videoPlayerController: _videoPlayerController,
+                        videoPlayerController: _videoPlayerController!,
                       ),
                     ),
                     Padding(
@@ -173,7 +176,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 selectedIndex = 2;
                               }
                               setState(() {});
-                              _videoPlayerController.dispose();
+                              _videoPlayerController!.dispose();
                               await initPlayer();
                             },
                             child: Container(
@@ -194,56 +197,61 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           GestureDetector(
                             onTap: () async {
-                              if (await Permission.storage
-                                  .request()
-                                  .isGranted) {
-                                var dir = await DownloadsPathProvider
-                                    .downloadsDirectory;
-                                if (dir != null) {
-                                  List<String> list = url[selectedIndex].split(
-                                      'https://my-bucket-to.s3.amazonaws.com/');
-                                  if (list.isNotEmpty && list != null) {
-                                    String savename = list[1];
-                                    String savePath = "${dir.path}/$savename";
-                                    log(savePath);
-                                    //output:  /storage/emulated/0/Download/banner.png
-                                    try {
-                                      await Dio().download(fileurl, savePath,
-                                          onReceiveProgress: (received, total) {
-                                        if (total != -1) {
-                                          _isDownloading = true;
-                                          setState(() {});
-                                          progressNotifier.value =
-                                              (received / total * 100);
+                              if (!_isSavedVideo) {
+                                if (await Permission.storage
+                                    .request()
+                                    .isGranted) {
+                                  var dir =
+                                      await getApplicationDocumentsDirectory();
+                                  if (dir != null) {
+                                    List<String> list = url[selectedIndex].split(
+                                        'https://my-bucket-to.s3.amazonaws.com/');
+                                    if (list.isNotEmpty && list != null) {
+                                      String savename = list[1];
+                                      String savePath = "${dir.path}/$savename";
+                                      log(savePath);
+                                      //output:  /storage/emulated/0/Download/banner.png
+                                      try {
+                                        await Dio().download(
+                                            url[selectedIndex], savePath,
+                                            onReceiveProgress:
+                                                (received, total) {
+                                          if (total != -1) {
+                                            _isDownloading = true;
+                                            setState(() {});
+                                            progressNotifier.value =
+                                                (received / total * 100);
 
-                                          log("${(received / total * 100).toStringAsFixed(0)}%");
-                                          //you can build progressbar feature too
-                                        }
-                                      });
-                                      _isDownloading = false;
-                                      setState(() {});
-                                      Fluttertoast.showToast(
-                                          msg: "File saved to downloads",
-                                          toastLength: Toast.LENGTH_SHORT,
-                                          gravity: ToastGravity.CENTER,
-                                          timeInSecForIosWeb: 1,
-                                          backgroundColor: HexColor('#57EE9D'),
-                                          textColor: Colors.white,
-                                          fontSize: 16.0);
-                                    } on DioError catch (e) {
-                                      log(e.message);
+                                            log("${(received / total * 100).toStringAsFixed(0)}%");
+                                            //you can build progressbar feature too
+                                          }
+                                        });
+                                        _isDownloading = false;
+                                        setState(() {});
+                                        Fluttertoast.showToast(
+                                            msg: "File saved to downloads",
+                                            toastLength: Toast.LENGTH_SHORT,
+                                            gravity: ToastGravity.CENTER,
+                                            timeInSecForIosWeb: 1,
+                                            backgroundColor:
+                                                HexColor('#57EE9D'),
+                                            textColor: Colors.white,
+                                            fontSize: 16.0);
+                                      } on DioError catch (e) {
+                                        log(e.message);
+                                      }
                                     }
                                   }
+                                } else if (await Permission.storage
+                                    .request()
+                                    .isPermanentlyDenied) {
+                                  log('Not Permenently authenticated');
+                                  await openAppSettings();
+                                } else if (await Permission.storage
+                                    .request()
+                                    .isDenied) {
+                                  log('Not authenticated');
                                 }
-                              } else if (await Permission.storage
-                                  .request()
-                                  .isPermanentlyDenied) {
-                                log('Not Permenently authenticated');
-                                await openAppSettings();
-                              } else if (await Permission.storage
-                                  .request()
-                                  .isDenied) {
-                                log('Not authenticated');
                               }
                             },
                             child: Container(
@@ -260,7 +268,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      Icons.arrow_drop_down_outlined,
+                                      _isSavedVideo
+                                          ? Icons.done
+                                          : Icons.arrow_drop_down_outlined,
                                       color: HexColor(
                                         '#57EE9D',
                                       ),
@@ -269,7 +279,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       width: 10,
                                     ),
                                     Text(
-                                      'Download',
+                                      _isSavedVideo ? 'Saved' : 'Download',
                                       style: GoogleFonts.poppins(),
                                     )
                                   ],
@@ -287,7 +297,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               }
                               log('ChangedIndex $selectedIndex, ');
                               setState(() {});
-                              _videoPlayerController.dispose();
+                              _videoPlayerController!.dispose();
                               await initPlayer();
                             },
                             child: Container(
