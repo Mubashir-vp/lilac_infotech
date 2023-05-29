@@ -28,18 +28,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final FirebaseAuth auth = FirebaseAuth.instance;
       emit(const OtpSent());
       await auth.verifyPhoneNumber(
-        phoneNumber: event.mobile,
+        phoneNumber: '+91${event.mobile}',
         verificationCompleted: (PhoneAuthCredential credential) async {
           await auth.signInWithCredential(credential);
         },
         verificationFailed: (FirebaseAuthException e) {
-          emit(LoggingFailedState(errorMesage: e.toString()));
+          log('Verfication failed$e');
+
+          // emit(LoggingFailedState(errorMesage: e.toString()));
         },
         codeSent: (String verificationId, int? resendToken) {
-          verificationId = verificationId;
+          log('Verfication code sent $verificationId');
+          // verificationId = verificationId;
         },
         codeAutoRetrievalTimeout: (String verificationId) {
-          verificationId = verificationId;
+          // verificationId = verificationId;
         },
       );
     });
