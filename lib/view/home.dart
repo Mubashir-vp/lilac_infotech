@@ -2,9 +2,11 @@
 
 import 'dart:developer' as dev;
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'package:encrypt/encrypt.dart' as enc;
 import 'package:flutter_windowmanager/flutter_windowmanager.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:lilac_info_tech/core/encrypt.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -25,40 +27,63 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<String> uniqueKeys = [
+    'my 01 length key................',
+    'my 02 length key................',
+    'my 03 length key................',
+  ];
   VideoPlayerController? _videoPlayerController;
   final progressNotifier = ValueNotifier<double?>(0);
-  Future<String?> encryptVideoFile(
-    String filePath,
-  ) async {
-    dev.log('Got inside');
+  _getNormalFile(Directory directory, fileName) async {
     try {
-      final file = File(filePath);
-      final fileBytes = await file.readAsBytes();
-      final key = enc.Key.fromUtf8('demo_key');
-      final encrypter = enc.Encrypter(enc.AES(key));
-      final encryptedBytes = encrypter.encryptBytes(fileBytes);
-      final encryptedFilePath = '${file.path}.encrypted';
-      final encryptedFile = File(encryptedFilePath);
-      await encryptedFile.writeAsBytes(encryptedBytes.bytes);
-      return encryptedFilePath;
+      Uint8List? encData = await _readData('$fileName.aes');
+      var plainData = await _decryptData(encData);
+      String p = await _writeData(plainData, fileName);
+      dev.log('File decrypted successfully : $p');
+      return p;
     } catch (e) {
-      dev.log('Error Occured in encryption $e');
+      dev.log('Error Occured in _getNormalFile$e');
     }
-    return null;
   }
 
-  Future<String> decryptVideoFile(String filePath) async {
-    final file = File(filePath);
-    final encryptedBytes = await file.readAsBytes();
-    // Generate encryption key
-    final key = enc.Key.fromUtf8('demo_key');
-    final encrypter = enc.Encrypter(enc.AES(key));
-    final decryptedBytes =
-        encrypter.decryptBytes(enc.Encrypted(encryptedBytes));
-    final decryptedFilePath = '${file.path}.decrypted';
-    final decryptedFile = File(decryptedFilePath);
-    await decryptedFile.writeAsBytes(decryptedBytes);
-    return decryptedFilePath;
+  _writeData(dataTowrite, fileNameWithPath) async {
+    dev.log('writing data...');
+    File f = File(fileNameWithPath);
+    await f.writeAsBytes(dataTowrite);
+    return f.absolute.toString();
+  }
+
+  Future<Uint8List?> _readData(fileNameWithPath) async {
+    try {
+      dev.log('Reading data... $fileNameWithPath');
+      File f = File(fileNameWithPath);
+      return await f.readAsBytes();
+    } catch (e) {
+      dev.log('Error Occured in _readData $e');
+      return null;
+    }
+  }
+
+  _decryptData(encData) {
+    try {
+      dev.log('File decryption in progress');
+      enc.Encrypted en = enc.Encrypted(encData);
+      return MyEncrypt.myEncrypter.decryptBytes(en, iv: MyEncrypt.myIv);
+    } catch (e) {
+      dev.log('Error occured in _decryptData $e');
+    }
+  }
+
+  newEncryptFile(
+    filepath,
+  ) async {
+    try {
+      final encrypted =
+          MyEncrypt.myEncrypter.encryptBytes(filepath, iv: MyEncrypt.myIv);
+      return encrypted.bytes;
+    } catch (e) {
+      dev.log('Error in encryption$e');
+    }
   }
 
   List<String> url = [
@@ -75,48 +100,27 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     initPlayer();
-    // _chewieController = ChewieController(
-    //   videoPlayerController: _videoPlayerController!,
-
-    //   // Prepare the video to be played and display the first frame
-    //   autoInitialize: true,
-    //   allowFullScreen: false,
-    //   aspectRatio: 16 / 9,
-    //   looping: true,
-    //   autoPlay: false,
-    //   showControlsOnInitialize: false,
-    //   // Errors can occur for example when trying to play a video
-    //   // from a non-existent URL
-    //   errorBuilder: (context, errorMessage) {
-    //     return Center(
-    //       child: Text(
-    //         errorMessage,
-    //         style: TextStyle(color: Colors.white),
-    //       ),
-    //     );
-    //   },
-    // );
     super.initState();
   }
 
   initPlayer() async {
     try {
-      var dir = await getApplicationDocumentsDirectory();
+      var dir = await getExternalVisibleDir;
       List<String> list =
           url[selectedIndex].split('https://my-bucket-to.s3.amazonaws.com/');
       if (list.isNotEmpty && list != null) {
         String savename = list[1];
         final filePath = "${dir.path}/$savename";
+        final encryptedFile = File('$filePath.aes');
         final file = File(filePath);
-        // final decryptedFilePath =
-        //     '${file.path}.decrypted'; // Decrypted file path
-        final decryptedFilePath = await decryptVideoFile(filePath);
-        final decryptedFile = File(decryptedFilePath);
-        bool isDecryptedFileExist = await decryptedFile.exists();
-        if (isDecryptedFileExist) {
-          dev.log('VideoFrom file $decryptedFilePath');
+        bool isExist = await file.exists();
+        bool isEncryptedExist = await encryptedFile.exists();
+        if (isExist) {
+          dev.log(
+            'VideoFrom non encrypted file $file',
+          );
           _videoPlayerController = VideoPlayerController.file(
-            File(filePath),
+            file,
           )
             ..addListener(() {
               setState(
@@ -128,8 +132,27 @@ class _MyHomePageState extends State<MyHomePage> {
               (value) => _videoPlayerController!.play(),
             );
           _isSavedVideo = true;
-        } else {
-          //  await file.deleteSync();
+         
+        } else if(isEncryptedExist){
+           dev.log(
+            'VideoFrom encrypted file $file',
+          );
+        await  _getNormalFile(dir, filePath);
+          _videoPlayerController = VideoPlayerController.file(
+            file,
+          )
+            ..addListener(() {
+              setState(
+                () {},
+              );
+            })
+            ..setLooping(true)
+            ..initialize().then(
+              (value) => _videoPlayerController!.play(),
+            );
+          _isSavedVideo = true;
+        }
+        else {
           dev.log('VideoFrom network ${url[selectedIndex]}');
           _videoPlayerController = VideoPlayerController.network(
               url[selectedIndex],
@@ -158,6 +181,18 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     _videoPlayerController!.dispose();
     super.dispose();
+  }
+
+  Future<Directory> get getExternalVisibleDir async {
+    if (await Directory('/storage/emulated/0/MyEncFolder').exists()) {
+      final dir = Directory('/storage/emulated/0/MyEncFolder');
+      return dir;
+    } else {
+      await Directory('/storage/emulated/0/MyEncFolder')
+          .create(recursive: true);
+      final dir = Directory('/storage/emulated/0/MyEncFolder');
+      return dir;
+    }
   }
 
   @override
@@ -260,29 +295,32 @@ class _MyHomePageState extends State<MyHomePage> {
                                 if (await Permission.storage
                                     .request()
                                     .isGranted) {
-                                  var dir =
-                                      await getApplicationDocumentsDirectory();
+                                  var dir = await getExternalVisibleDir;
                                   if (dir != null) {
                                     List<String> list = url[selectedIndex].split(
                                         'https://my-bucket-to.s3.amazonaws.com/');
                                     if (list.isNotEmpty && list != null) {
                                       String savename = list[1];
-                                      String savePath = "${dir.path}/$savename";
                                       try {
-                                        await Dio().download(
-                                            url[selectedIndex], savePath,
-                                            onReceiveProgress:
-                                                (received, total) {
-                                          if (total != -1) {
-                                            _isDownloading = true;
-                                            setState(() {});
-                                            progressNotifier.value =
-                                                (received / total * 100);
-                                          }
-                                        });
-                                        final encryptedFilePath =
-                                            await encryptVideoFile(savePath);
-                                        dev.log(encryptedFilePath.toString());
+                                        final res = await http.get(
+                                          Uri.parse(url[selectedIndex]),
+                                          //     onReceiveProgress:
+                                          //         (received, total) {
+                                          //   if (total != -1) {
+                                          //     _isDownloading = true;
+                                          //     setState(() {});
+                                          //     progressNotifier.value =
+                                          //         (received / total * 100);
+                                          //   }
+                                          // }
+                                        );
+                                        final encResult = await newEncryptFile(
+                                          res.bodyBytes,
+                                        );
+                                        String p = await _writeData(encResult,
+                                            '${dir.path}/$savename.aes');
+                                        dev.log('Encryption success : $p');
+                                        // dev.log(encryptedFilePath.toString());
 
                                         // final File file = File(savePath);
                                         // await file.writeAsBytes(response.data,
