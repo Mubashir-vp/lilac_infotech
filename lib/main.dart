@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lilac_info_tech/view/home/bloc/home_bloc.dart';
 import 'package:lilac_info_tech/view/home/home.dart';
+import 'package:lilac_info_tech/view/login/login.dart';
 
 void main() {
   runApp(MultiBlocProvider(providers: [
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home:  LoginScreen(),
     );
   }
 }

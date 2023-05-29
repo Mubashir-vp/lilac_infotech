@@ -9,7 +9,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import '../../core/data/services/video.services.dart';
@@ -35,7 +34,6 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
   int selectedIndex = 0;
   bool _isInitialized = false;
-  bool _isDownloading = false;
   bool _isSavedVideo = false;
   bool _isSecureMode = false;
 
@@ -170,9 +168,36 @@ class _MyHomePageState extends State<MyHomePage> {
           backgroundColor: Colors.transparent,
         ),
         body: _isInitialized
-            ? BlocBuilder<HomeBloc, HomeState>(
+            ? BlocConsumer<HomeBloc, HomeState>(
+                listener: (context, state) {
+                  if (state is VideoDownloaded) {
+                    _isSavedVideo = true;
+                    setState(() {});
+                    Fluttertoast.showToast(
+                        msg: "File saved to downloads",
+                        toastLength: Toast.LENGTH_SHORT,
+                        gravity: ToastGravity.CENTER,
+                        timeInSecForIosWeb: 1,
+                        backgroundColor: HexColor('#57EE9D'),
+                        textColor: Colors.white,
+                        fontSize: 16.0);
+                  } else if (state is FailedState) {
+                    dev.log('Video downloading failed ${state.errorString}');
+
+                    Fluttertoast.showToast(
+                        msg: state.errorString,
+                        toastLength: Toast.LENGTH_SHORT,
+                        gravity: ToastGravity.CENTER,
+                        timeInSecForIosWeb: 1,
+                        backgroundColor: HexColor('#57EE9D'),
+                        textColor: Colors.white,
+                        fontSize: 16.0);
+                  } else {
+                    dev.log('Else $state');
+                  }
+                },
                 bloc: homeBloc,
-                builder: (context, state) {
+                builder: (context, homeState) {
                   return SingleChildScrollView(
                     child: Column(
                       children: [
@@ -184,189 +209,157 @@ class _MyHomePageState extends State<MyHomePage> {
                             videoPlayerController: _videoPlayerController!,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(
-                            20.0,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: () async {
-                                  if (selectedIndex != 0) {
-                                    selectedIndex--;
-                                  } else {
-                                    selectedIndex = 2;
-                                  }
-                                  setState(() {});
-                                  await _videoPlayerController!.dispose();
-                                  await initPlayer();
-                                },
-                                child: Container(
-                                  height: 43,
-                                  width: 43,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      12,
-                                    ),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.keyboard_arrow_left_outlined,
-                                    ),
-                                  ),
+                        _isInitialized
+                            ? Padding(
+                                padding: const EdgeInsets.all(
+                                  20.0,
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () async {
-                                  if (!_isSavedVideo) {
-                                    if (await Permission.storage
-                                        .request()
-                                        .isGranted) {
-                                      var dir = await VideoServices()
-                                          .getExternalVisibleDir;
-                                      if (dir != null) {
-                                        List<String> list = url[selectedIndex]
-                                            .split(
-                                                'https://my-bucket-to.s3.amazonaws.com/');
-                                        if (list.isNotEmpty && list != null) {
-                                          String savename = list[1];
-                                          homeBloc.add(
-                                            DownloadVideo(
-                                              uri: url[selectedIndex],
-                                            ),
-                                          );
-
-                                          if (state is VideoDownloaded) {
-                                            final encResult =
-                                                await VideoServices()
-                                                    .newEncryptFile(
-                                              state.response.bodyBytes,
-                                            );
-                                            await VideoServices().writeData(
-                                                encResult,
-                                                '${dir.path}/$savename.aes');
-                                            _isDownloading = false;
-                                            _isSavedVideo = true;
-                                            setState(() {});
-                                            Fluttertoast.showToast(
-                                                msg: "File saved to downloads",
-                                                toastLength: Toast.LENGTH_SHORT,
-                                                gravity: ToastGravity.CENTER,
-                                                timeInSecForIosWeb: 1,
-                                                backgroundColor:
-                                                    HexColor('#57EE9D'),
-                                                textColor: Colors.white,
-                                                fontSize: 16.0);
-                                          } else if (state is FailedState) {
-                                            Fluttertoast.showToast(
-                                                msg: state.errorString,
-                                                toastLength: Toast.LENGTH_SHORT,
-                                                gravity: ToastGravity.CENTER,
-                                                timeInSecForIosWeb: 1,
-                                                backgroundColor:
-                                                    HexColor('#57EE9D'),
-                                                textColor: Colors.white,
-                                                fontSize: 16.0);
-                                          }
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () async {
+                                        if (selectedIndex != 0) {
+                                          selectedIndex--;
+                                        } else {
+                                          selectedIndex = 2;
                                         }
-                                      }
-                                    } else if (await Permission.storage
-                                        .request()
-                                        .isPermanentlyDenied) {
-                                      dev.log('Permenently denied');
-                                      await openAppSettings();
-                                    } else if (await Permission.storage
-                                        .request()
-                                        .isDenied) {
-                                      dev.log('Not authenticated');
-                                    }
-                                  }
-                                },
-                                child: Container(
-                                  height: 50,
-                                  width: 140,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      12,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          _isSavedVideo
-                                              ? Icons.done
-                                              : Icons.arrow_drop_down_outlined,
-                                          color: HexColor(
-                                            '#57EE9D',
+                                        setState(() {});
+                                        await _videoPlayerController!.dispose();
+                                        await initPlayer();
+                                      },
+                                      child: Container(
+                                        height: 43,
+                                        width: 43,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
                                         ),
-                                        const SizedBox(
-                                          width: 10,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.keyboard_arrow_left_outlined,
+                                          ),
                                         ),
-                                        Text(
-                                          _isSavedVideo ? 'Saved' : 'Download',
-                                          style: GoogleFonts.poppins(),
-                                        )
-                                      ],
+                                      ),
                                     ),
-                                  ),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        dev.log('Loging on TOP $homeState');
+                                        if (!_isSavedVideo) {
+                                          if (await Permission.storage
+                                              .request()
+                                              .isGranted) {
+                                            var dir = await VideoServices()
+                                                .getExternalVisibleDir;
+                                            if (dir != null) {
+                                              List<String> list =
+                                                  url[selectedIndex].split(
+                                                      'https://my-bucket-to.s3.amazonaws.com/');
+                                              if (list.isNotEmpty &&
+                                                  list != null) {
+                                                String savename = list[1];
+                                                homeBloc.add(
+                                                  DownloadVideo(
+                                                      uri: url[selectedIndex],
+                                                      path:
+                                                          '${dir.path}/$savename.aes'),
+                                                );
+                                              }
+                                            }
+                                          } else if (await Permission.storage
+                                              .request()
+                                              .isPermanentlyDenied) {
+                                            dev.log('Permenently denied');
+                                            await openAppSettings();
+                                          } else if (await Permission.storage
+                                              .request()
+                                              .isDenied) {
+                                            dev.log('Not authenticated');
+                                          }
+                                        }
+                                      },
+                                      child: Container(
+                                        height: 50,
+                                        width: 140,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: homeState is HomeLoading
+                                              ? const CircularProgressIndicator()
+                                              : Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      _isSavedVideo
+                                                          ? Icons.done
+                                                          : Icons
+                                                              .arrow_drop_down_outlined,
+                                                      color: HexColor(
+                                                        '#57EE9D',
+                                                      ),
+                                                    ),
+                                                    const SizedBox(
+                                                      width: 10,
+                                                    ),
+                                                    Text(
+                                                      _isSavedVideo
+                                                          ? 'Saved'
+                                                          : 'Download',
+                                                      style:
+                                                          GoogleFonts.poppins(),
+                                                    )
+                                                  ],
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        dev.log(
+                                            'SelectedIndex $selectedIndex, ');
+                                        if (selectedIndex != 2) {
+                                          selectedIndex++;
+                                        } else {
+                                          selectedIndex = 0;
+                                        }
+                                        dev.log(
+                                            'ChangedIndex $selectedIndex, ');
+                                        setState(() {});
+                                        _videoPlayerController!.dispose();
+                                        await initPlayer();
+                                      },
+                                      child: Container(
+                                        height: 43,
+                                        width: 43,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.keyboard_arrow_right_outlined,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () async {
-                                  dev.log('SelectedIndex $selectedIndex, ');
-                                  if (selectedIndex != 2) {
-                                    selectedIndex++;
-                                  } else {
-                                    selectedIndex = 0;
-                                  }
-                                  dev.log('ChangedIndex $selectedIndex, ');
-                                  setState(() {});
-                                  _videoPlayerController!.dispose();
-                                  await initPlayer();
-                                },
-                                child: Container(
-                                  height: 43,
-                                  width: 43,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(
-                                      12,
-                                    ),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.keyboard_arrow_right_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _isDownloading == true
-                            ? ValueListenableBuilder<double?>(
-                                valueListenable: progressNotifier,
-                                builder: (context, percent, child) {
-                                  dev.log('Progres checking $percent');
-                                  return CircularPercentIndicator(
-                                    radius: 30,
-                                    percent: percent! / 100,
-                                    center: Text(
-                                      "${percent.toStringAsFixed(0)}%",
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20.0),
-                                    ),
-                                    progressColor: HexColor('#57EE9D'),
-                                  );
-                                })
+                              )
+                            : SizedBox(),
+                        homeState is HomeLoading
+                            ? const Text(
+                                'Your video is downloading and encrypting\nPlease wait',
+                              )
                             : const SizedBox(),
                       ],
                     ),

@@ -9,7 +9,8 @@ abstract class HomeEvent extends Equatable {
 
 class DownloadVideo extends HomeEvent {
   final String uri;
-  const DownloadVideo({required this.uri});
+  final String path;
+  const DownloadVideo({required this.uri,required this.path});
   @override
   List<Object> get props => [];
 }
