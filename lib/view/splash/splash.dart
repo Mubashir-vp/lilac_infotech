@@ -19,7 +19,12 @@ class _SplashState extends State<Splash> {
   @override
   void initState() {
     // TODO: implement initState
-    _authBloc.add(CheckUser());
+    Future.delayed(
+        const Duration(
+          seconds: 3,
+        ), () {
+      _authBloc.add(CheckUser());
+    });
     super.initState();
   }
 
@@ -30,15 +35,17 @@ class _SplashState extends State<Splash> {
       listener: (context, state) {
         if (state is LogedInState) {
           log('LogedInState');
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const MyHomePage(),
+              builder: (context) => MyHomePage(
+                userModel: state.userModel,
+              ),
             ),
           );
         } else if (state is LogedOutState) {
           log('LogedOutState');
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => LoginScreen(),
@@ -47,11 +54,8 @@ class _SplashState extends State<Splash> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(),
-        body: const Center(
-          child: Icon(
-            Icons.video_collection_rounded,
-          ),
+        body: Center(
+          child: Image.asset('assets/images/splash_image.png'),
         ),
       ),
     );

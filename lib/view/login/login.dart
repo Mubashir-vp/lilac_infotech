@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:hexcolor/hexcolor.dart';
 import '../../core/bloc/auth_bloc/auth_bloc.dart';
 import '../../widgets/otpsheet.dart';
 import '../register/register_screen.dart';
@@ -10,11 +12,17 @@ class LoginScreen extends StatelessWidget {
   final AuthBloc _authBloc = AuthBloc();
   final TextEditingController _mobileEditingController =
       TextEditingController();
-  void _showOtpBottomSheet(BuildContext context) {
+  void _showOtpBottomSheet(
+    BuildContext context,
+    String verifcationId,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const OtpBottomSheet(),
+      builder: (context) => OtpBottomSheet(
+        verificationId: verifcationId,
+        phone: _mobileEditingController.text,
+      ),
     );
   }
 
@@ -23,13 +31,34 @@ class LoginScreen extends StatelessWidget {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, listenerState) {
         if (listenerState is OtpSent) {
-          _showOtpBottomSheet(context);
+          _showOtpBottomSheet(
+            context,
+            listenerState.verificationId,
+          );
+        }
+        if (listenerState is NewUser) {
+          Fluttertoast.showToast(
+              msg: 'Please register to Login',
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.CENTER,
+              timeInSecForIosWeb: 1,
+              backgroundColor: HexColor('#57EE9D'),
+              textColor: Colors.white,
+              fontSize: 16.0);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: ((context) => const RegisterScreen()),
+            ),
+          );
         }
       },
       bloc: _authBloc,
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+          ),
           body: Padding(
             padding: const EdgeInsets.all(20.0),
             child: SingleChildScrollView(
@@ -74,26 +103,30 @@ class LoginScreen extends StatelessWidget {
                   Center(
                     child: TextButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _authBloc.add(
-                            LoginUserwithPhone(
+                        // if (_formKey.currentState!.validate()) {
+                        _authBloc.add(
+                          LoginUserwithPhone(
                               mobile: _mobileEditingController.text,
-                            ),
-                          );
-                        }
+                              isRegister: false),
+                        );
+                        // }
                       },
                       style: ButtonStyle(
                         backgroundColor: MaterialStateProperty.all(
                           Colors.blue,
                         ),
                       ),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                        ),
-                      ),
+                      child: state is AuthLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text(
+                              'Login',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -103,7 +136,7 @@ class LoginScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => RegisterScreen()),
+                              builder: (context) => const RegisterScreen()),
                         );
                       },
                       child: const Text(

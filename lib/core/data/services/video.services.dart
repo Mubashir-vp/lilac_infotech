@@ -2,7 +2,7 @@ import 'dart:developer' as dev;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart' as enc;
-import 'package:lilac_info_tech/core/encrypt.dart';
+import 'package:lilac_info_tech/core/utils/encrypt.dart';
 
 class VideoServices {
   getNormalFile(Directory directory, fileName) async {
