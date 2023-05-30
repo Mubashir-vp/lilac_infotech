@@ -54,6 +54,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginUserwithPhone>((event, emit) async {
       emit(AuthLoading());
       if (!event.isRegister) {
+        
         final CollectionReference usersRef =
             FirebaseFirestore.instance.collection('users');
         bool isUserExist = await AuthServices().checkUser(

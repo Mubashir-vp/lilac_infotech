@@ -12,7 +12,20 @@
           "package_name": "com.example.lilac_info_tech"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1067348017220-36f9n64rku60gj3pk3e3okar7dqoao6d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.lilac_info_tech",
+            "certificate_hash": "85bcf47cc0cefea3542a4511a9c08106625f58a8"
+          }
+        },
+        {
+          "client_id": "1067348017220-54744qf4r8t7m6sbkpj40jqc28mqb9c5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD4eXhid95oS6fZR9IYog_2qFZmh2R8h1o"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1067348017220-54744qf4r8t7m6sbkpj40jqc28mqb9c5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -10,6 +10,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'package:lilac_info_tech/core/data/services/auth_services.dart';
 import 'package:lilac_info_tech/view/login/login.dart';
 import 'package:lilac_info_tech/view/settings/settings.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -20,17 +21,17 @@ import '../../core/data/services/video.services.dart';
 import '../../widgets/videoplayer.dart';
 import 'bloc/home_bloc.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({
+class HomePage extends StatefulWidget {
+  const HomePage({
     super.key,
     required this.userModel,
   });
   final UserModel userModel;
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _HomePageState extends State<HomePage> {
   VideoPlayerController? _videoPlayerController;
   final progressNotifier = ValueNotifier<double?>(0);
 
@@ -42,7 +43,6 @@ class _MyHomePageState extends State<MyHomePage> {
   int selectedIndex = 0;
   bool _isInitialized = false;
   bool _isSavedVideo = false;
-  bool _isSecureMode = false;
 
   @override
   void initState() {
@@ -51,6 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   initPlayer() async {
+    FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
     try {
       var dir = await VideoServices().getExternalVisibleDir;
       List<String> list =
@@ -63,40 +64,64 @@ class _MyHomePageState extends State<MyHomePage> {
         bool isExist = await file.exists();
         bool isEncryptedExist = await encryptedFile.exists();
         if (isExist) {
-          dev.log(
-            'VideoFrom non encrypted file $file',
-          );
-          _videoPlayerController = VideoPlayerController.file(
-            file,
-          )
-            ..addListener(() {
-              setState(
-                () {},
-              );
-            })
-            ..setLooping(true)
-            ..initialize().then(
-              (value) => _videoPlayerController!.play(),
+          if (await Permission.storage.request().isGranted &&
+              await Permission.manageExternalStorage.request().isGranted) {
+            dev.log(
+              'VideoFrom non encrypted file $file',
             );
-          _isSavedVideo = true;
+            _videoPlayerController = VideoPlayerController.file(
+              file,
+            )
+              ..addListener(() {
+                setState(
+                  () {},
+                );
+              })
+              ..setLooping(true)
+              ..initialize().then(
+                (value) => _videoPlayerController!.play(),
+              );
+            _isSavedVideo = true;
+          } else if (await Permission.storage.request().isPermanentlyDenied &&
+              await Permission.manageExternalStorage
+                  .request()
+                  .isPermanentlyDenied) {
+            dev.log('Permenently denied');
+            await openAppSettings();
+          } else if (await Permission.storage.request().isDenied &&
+              await Permission.manageExternalStorage.request().isDenied) {
+            dev.log('Not authenticated');
+          }
         } else if (isEncryptedExist) {
-          dev.log(
-            'VideoFrom encrypted file $file',
-          );
-          await VideoServices().getNormalFile(dir, filePath);
-          _videoPlayerController = VideoPlayerController.file(
-            file,
-          )
-            ..addListener(() {
-              setState(
-                () {},
-              );
-            })
-            ..setLooping(true)
-            ..initialize().then(
-              (value) => _videoPlayerController!.play(),
+          if (await Permission.storage.request().isGranted &&
+              await Permission.manageExternalStorage.request().isGranted) {
+            dev.log(
+              'VideoFrom encrypted file $file',
             );
-          _isSavedVideo = true;
+            await VideoServices().getNormalFile(dir, filePath);
+            _videoPlayerController = VideoPlayerController.file(
+              file,
+            )
+              ..addListener(() {
+                setState(
+                  () {},
+                );
+              })
+              ..setLooping(true)
+              ..initialize().then(
+                (value) => _videoPlayerController!.play(),
+              );
+            _isSavedVideo = true;
+          } else if (await Permission.storage.request().isPermanentlyDenied &&
+              await Permission.manageExternalStorage
+                  .request()
+                  .isPermanentlyDenied) {
+            dev.log('Permenently denied');
+            await openAppSettings();
+          } else if (await Permission.storage.request().isDenied &&
+              await Permission.manageExternalStorage.request().isDenied) {
+            dev.log('Not authenticated');
+          }
         } else {
           dev.log('VideoFrom network ${url[selectedIndex]}');
           _videoPlayerController = VideoPlayerController.network(
@@ -210,25 +235,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   leading: const Icon(Icons.settings),
                   title: const Text('Settings'),
                 ),
+                ListTile(
+                  onTap: () async {
+                    _authBloc.add(const LogOut());
+                  },
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Logout'),
+                ),
               ],
-            ),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            label: Text(_isSecureMode ? 'Secure Mode' : 'UnSecure Mode'),
-            onPressed: () {
-              _isSecureMode = !_isSecureMode;
-              setState(() {});
-              if (_isSecureMode) {
-                FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
-              } else {
-                FlutterWindowManager.clearFlags(
-                    FlutterWindowManager.FLAG_SECURE);
-              }
-            },
-            icon: Icon(
-              _isSecureMode
-                  ? FontAwesomeIcons.userSecret
-                  : FontAwesomeIcons.lockOpen,
             ),
           ),
           extendBodyBehindAppBar: true,
@@ -312,6 +326,28 @@ class _MyHomePageState extends State<MyHomePage> {
                             alignment: Alignment.topCenter,
                             child: VideoPlayerWidget(
                               videoPlayerController: _videoPlayerController!,
+                              onPressed1: () async {
+                                if (selectedIndex != 0) {
+                                  selectedIndex--;
+                                } else {
+                                  selectedIndex = 2;
+                                }
+                                setState(() {});
+                                await _videoPlayerController!.dispose();
+                                await initPlayer();
+                              },
+                              onPressed2: () async {
+                                dev.log('SelectedIndex $selectedIndex, ');
+                                if (selectedIndex != 2) {
+                                  selectedIndex++;
+                                } else {
+                                  selectedIndex = 0;
+                                }
+                                dev.log('ChangedIndex $selectedIndex, ');
+                                setState(() {});
+                                _videoPlayerController!.dispose();
+                                await initPlayer();
+                              },
                             ),
                           ),
                           _isInitialized

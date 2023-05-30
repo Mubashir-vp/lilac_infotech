@@ -4,8 +4,10 @@ import 'package:hexcolor/hexcolor.dart';
 import 'package:video_player/video_player.dart';
 
 class BasicOverlay extends StatefulWidget {
-  const BasicOverlay({super.key, required this.videoPlayerController});
+  const BasicOverlay({super.key, required this.videoPlayerController,required this.onPressed2,required this.onPressed1,});
   final VideoPlayerController videoPlayerController;
+  final onPressed1;
+  final onPressed2;
 
   @override
   State<BasicOverlay> createState() => _BasicOverlayState();
@@ -44,6 +46,7 @@ class _BasicOverlayState extends State<BasicOverlay> {
       );
 
   buildControlls() => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Icon(FontAwesomeIcons.backwardStep, color: Colors.white, size: 15),
           // SizedBox(
@@ -53,6 +56,20 @@ class _BasicOverlayState extends State<BasicOverlay> {
           // SizedBox(
           //   width: 15,
           // ),
+          IconButton(
+              icon: Icon(FontAwesomeIcons.backwardStep,
+                  color: Colors.white, size: 14),
+              onPressed: widget.onPressed1),
+          IconButton(
+              icon: Icon(FontAwesomeIcons.backward,
+                  color: Colors.white, size: 14),
+              onPressed: () {
+                Duration currentPosition =
+                    widget.videoPlayerController.value.position;
+                Duration targetPosition =
+                    currentPosition - const Duration(seconds: 2);
+                widget.videoPlayerController.seekTo(targetPosition);
+              }),
           IconButton(
               onPressed: () {
                 setState(() {
@@ -70,6 +87,22 @@ class _BasicOverlayState extends State<BasicOverlay> {
                   color: Colors.white,
                   size: 15)),
           IconButton(
+              icon:
+                  Icon(FontAwesomeIcons.forward, color: Colors.white, size: 14),
+              onPressed: () {
+                Duration currentPosition =
+                    widget.videoPlayerController.value.position;
+                Duration targetPosition =
+                    currentPosition + const Duration(seconds: 2);
+                widget.videoPlayerController.seekTo(targetPosition);
+              }),
+
+          IconButton(
+              icon: Icon(FontAwesomeIcons.forwardStep,
+                  color: Colors.white, size: 14),
+              onPressed: widget.onPressed2),
+          Spacer(),
+          IconButton(
               icon: Icon(
                   _isMute
                       ? FontAwesomeIcons.volumeOff
@@ -86,15 +119,6 @@ class _BasicOverlayState extends State<BasicOverlay> {
                 }
                 setState(() {});
               }),
-          Spacer(),
-          // Icon(FontAwesomeIcons.gear, color: Colors.white, size: 15),
-          // SizedBox(
-          //   width: 15,
-          // ),
-          Icon(FontAwesomeIcons.expand, color: Colors.white, size: 15),
-          SizedBox(
-            width: 10,
-          )
         ],
       );
 }

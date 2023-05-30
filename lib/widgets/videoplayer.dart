@@ -7,16 +7,19 @@ class VideoPlayerWidget extends StatelessWidget {
   const VideoPlayerWidget({
     super.key,
     required this.videoPlayerController,
+    required this.onPressed2,
+    required this.onPressed1,
   });
   final VideoPlayerController videoPlayerController;
+  final onPressed1;
+  final onPressed2;
 
   @override
   Widget build(BuildContext context) {
     if (videoPlayerController.value.isInitialized) {
       return Container(
         alignment: Alignment.topCenter,
-        child: buildVideo(
-        ),
+        child: buildVideo(),
       );
     } else {
       return SizedBox(
@@ -35,6 +38,8 @@ class VideoPlayerWidget extends StatelessWidget {
           Positioned.fill(
             child: BasicOverlay(
               videoPlayerController: videoPlayerController,
+              onPressed1: onPressed1,
+              onPressed2: onPressed2,
             ),
           ),
         ],

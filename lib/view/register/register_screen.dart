@@ -7,7 +7,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:intl/intl.dart';
 import 'package:lilac_info_tech/view/home/home.dart';
-import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:sms_autofill/sms_autofill.dart';
 
 import '../../core/bloc/auth_bloc/auth_bloc.dart';
 
@@ -27,10 +27,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthBloc _authBloc = AuthBloc();
   String? selectedDate;
   File? _image;
+
   void _showOtpBottomSheet(
     BuildContext context,
     String verifcationId,
   ) {
+    String enterdOtp = '';
     showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -54,27 +56,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      PinCodeTextField(
-                        onCompleted: (value) {
-                          log('state $state');
+                      PinFieldAutoFill(
+                        currentCode: enterdOtp,
+                        decoration: BoxLooseDecoration(
+                            radius: Radius.circular(12),
+                            strokeColorBuilder:
+                                FixedColorBuilder(Color(0xFF8C4A52))),
+                        codeLength: 6,
+                        onCodeChanged: (code) {
+                          print("OnCodeChanged : $code");
+                          enterdOtp = code.toString();
+                        },
+                        onCodeSubmitted: (val) {
                           _authBloc.add(
-                            RegisterVerifyOtp(
-                              verficationCode: value,
+                            VerifyOtp(
+                              verficationCode: val,
                               verficationId: verifcationId,
                             ),
                           );
-                          Navigator.of(context).pop();
                         },
-                        appContext: context,
-                        length: 6,
-                        onChanged: (value) {},
-                        pinTheme: PinTheme(
-                          shape: PinCodeFieldShape.underline,
-                          activeColor: Colors.blue,
-                          inactiveColor: Colors.grey,
-                          fieldHeight: 50,
-                          fieldWidth: 40,
-                        ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
@@ -172,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: ((context) => MyHomePage(
+              builder: ((context) => HomePage(
                     userModel: listenerState.userModel,
                   )),
             ),
