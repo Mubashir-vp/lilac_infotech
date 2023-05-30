@@ -10,7 +10,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:lilac_info_tech/core/data/services/auth_services.dart';
 import 'package:lilac_info_tech/view/login/login.dart';
 import 'package:lilac_info_tech/view/settings/settings.dart';
 import 'package:permission_handler/permission_handler.dart';
