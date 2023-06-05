@@ -103,13 +103,13 @@ class LoginScreen extends StatelessWidget {
                   Center(
                     child: TextButton(
                       onPressed: () {
-                        // if (_formKey.currentState!.validate()) {
-                        _authBloc.add(
-                          LoginUserwithPhone(
-                              mobile: _mobileEditingController.text,
-                              isRegister: false),
-                        );
-                        // }
+                        if (_formKey.currentState!.validate()) {
+                          _authBloc.add(
+                            LoginUserwithPhone(
+                                mobile: _mobileEditingController.text,
+                                isRegister: false),
+                          );
+                        }
                       },
                       style: ButtonStyle(
                         backgroundColor: MaterialStateProperty.all(
